@@ -1,7 +1,7 @@
 import os
 from dotenv import load_dotenv
 load_dotenv()
-from langgraph.graph import Graph
+from langgraph.graph import Graph, END
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 import openai
 import requests
@@ -143,7 +143,29 @@ def research_node(messages):
     return [AIMessage(content=report)]
 
 def build_research_graph():
-    graph = Graph()
-    graph.add_node("research", research_node)
-    graph.set_entry_point("research")
-    return graph
+    """
+    Build and compile a research workflow graph using LangGraph.
+    
+    This function creates a simple graph with a single research node that:
+    1. Takes a query as input
+    2. Performs a web search
+    3. Creates a detailed report
+    
+    Returns:
+        A compiled LangGraph that can be run with input messages
+    """
+    # Create a new graph
+    workflow = Graph()
+    
+    # Add the research node
+    workflow.add_node("research", research_node)
+    
+    # Set the entry point for the graph
+    workflow.set_entry_point("research")
+    
+    # Set the research node as also the exit point
+    # This ensures that the final report from the research node is returned as output
+    workflow.add_edge("research", END)
+    
+    # Compile the graph before returning it
+    return workflow.compile()
