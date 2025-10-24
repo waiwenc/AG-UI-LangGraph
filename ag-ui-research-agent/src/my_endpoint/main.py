@@ -27,6 +27,7 @@ load_dotenv()  # Load environment variables from .env file
 from fastapi import FastAPI, Request  # Web framework
 from fastapi.responses import StreamingResponse  # For streaming responses
 from pydantic import BaseModel  # For data validation
+from fastapi.middleware.cors import CORSMiddleware
 
 # AG-UI protocol components for communication with frontend
 from ag_ui.core import (
@@ -86,6 +87,18 @@ class StateSnapshotEvent(BaseModel):
 
 # Create FastAPI application
 app = FastAPI(title="AG-UI Endpoint")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],  # Frontend URL
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
 
 @app.post("/langgraph-research")
 async def langgraph_research_endpoint(input_data: RunAgentInput):

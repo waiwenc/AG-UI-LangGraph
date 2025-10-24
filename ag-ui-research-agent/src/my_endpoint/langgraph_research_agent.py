@@ -5,6 +5,8 @@ from langgraph.graph import Graph, END
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 import openai
 import requests
+from google.genai import Client
+from google.genai.types import Content, Part, GenerateContentConfig 
 
 def web_search(query):
     print(f"[DEBUG] Searching for: {query}")
@@ -95,43 +97,49 @@ def create_detailed_report(search_results):
     
     print(f"[DEBUG] Creating detailed report from search results: {all_research[:500]}...")  # Print only first 500 chars
     
-    client = openai.OpenAI()
-    completion = client.chat.completions.create(
-        model="gpt-3.5-turbo-16k",  # Using a model with more context capacity for detailed reports
-        messages=[
-            {
-                "role": "system", 
-                "content": """Create a comprehensive research report on the topic using the provided search results. 
-                Your report should be well-structured with the following sections:
-
-                1. EXECUTIVE SUMMARY: A brief overview of the topic and key findings (2-3 sentences)
-                
-                2. INTRODUCTION: Background information on the topic and why it matters
-                
-                3. KEY FINDINGS: The main insights organized as bullet points
-                
-                4. DETAILED ANALYSIS: In-depth exploration of the topic with subsections as needed
-                   - Include answers to common questions when available
-                   - Address related topics identified in the research
-                
-                5. CONCLUSIONS: Summary of the most important takeaways
-                
-                6. FURTHER RESEARCH: Suggest related topics worth exploring 
-                
-                7. SOURCES: List all sources from the search results with their URLs
-                
-                Format the report with clear section headings and organized content. Include relevant facts, statistics, 
-                and quotes from the sources when available. Maintain a professional, objective tone throughout.
-                Use markdown formatting for better readability, with # for main headings and ## for subheadings.
-                """
-            },
-            {"role": "user", "content": all_research}
-        ],
-        temperature=0.5,  # Lower temperature for more factual, structured output
-        max_tokens=4000   # Allow for a longer response to accommodate the detailed report
-    )
+    client = Client(api_key=os.environ["GEMINI_API_KEY"])
     
-    report = completion.choices[0].message.content
+    system_instruction = """Create a comprehensive research report on the topic using the provided search results.
+    Your report should be well-structured with the following sections:
+
+    1. EXECUTIVE SUMMARY: A brief overview of the topic and key findings (2-3 sentences)
+    2. INTRODUCTION: Background information on the topic and why it matters
+    3. KEY FINDINGS: The main insights organized as bullet points
+    4. DETAILED ANALYSIS: In-depth exploration of the topic with subsections as needed
+    - Include answers to common questions when available
+    - Address related topics identified in the research
+    5. CONCLUSIONS: Summary of the most important takeaways
+    6. FURTHER RESEARCH: Suggest related topics worth exploring
+    7. SOURCES: List all sources from the search results with their URLs
+
+    Format the report with clear section headings and organized content. Include relevant facts, statistics,
+    and quotes from the sources when available. Maintain a professional, objective tone throughout.
+    Use markdown formatting for better readability, with # for main headings and ## for subheadings.
+    """
+
+    print(all_research)
+    text_part = Part.from_text(text=all_research)
+    
+    contents = [
+        Content(
+            role="user",
+            parts=[text_part]
+        )
+    ]
+
+    config = GenerateContentConfig(
+        system_instruction=system_instruction,
+        temperature=0.5,
+        max_output_tokens=4000
+    )
+
+    response = client.models.generate_content(
+            model="gemini-2.5-flash",  # Model with extended context
+            contents=contents,
+            config=config
+        )
+
+    report = response.text
     print(f"[DEBUG] Detailed research report generated (excerpt): {report[:300]}...")
     return report
 
